@@ -4,9 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Flappy Bird - Pixel Edition</title>
-    <!-- Firebase -->
-    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js"></script>
     <style>
         * {
             margin: 0;
@@ -329,7 +326,7 @@
             <h2>🎮 Spiel Info</h2>
             
             <div class="info-box">
-                💾 Scores werden gespeichert (☁️ Cloud + Lokal)
+                ☁️ Scores werden zu Firebase Cloud hochgeladen
             </div>
             
             <div class="score-display">
@@ -387,30 +384,78 @@
 
     <script>
         // ============================================
-        // FIREBASE SETUP
+        // FIREBASE REST API SETUP
         // ============================================
 
-        let database = null;
-        let firebaseReady = false;
+        const FIREBASE_DATABASE_URL = "https://flappybird-236b2-default-rtdb.europe-west1.firebasedatabase.app";
+        const FIREBASE_API_KEY = "AIzaSyCUfDBiYbuEbEaLlwKKv3xWkFCU9NwqpQg";
 
-        const firebaseConfig = {
-            apiKey: "AIzaSyCUfDBiYbuEbEaLlwKKv3xWkFCU9NwqpQg",
-            authDomain: "flappybird-236b2.firebaseapp.com",
-            databaseURL: "https://flappybird-236b2-default-rtdb.europe-west1.firebasedatabase.app",
-            projectId: "flappybird-236b2",
-            storageBucket: "flappybird-236b2.firebasestorage.app",
-            messagingSenderId: "81309926687",
-            appId: "1:81309926687:web:9ffa3fa859282372401c2a"
-        };
+        async function saveScoreToFirebase(name, score) {
+            try {
+                const timestamp = new Date().getTime();
+                const scoreId = name + '_' + timestamp;
+                
+                const data = {
+                    name: name,
+                    score: score,
+                    date: new Date().toLocaleDateString('de-DE'),
+                    timestamp: timestamp
+                };
 
-        try {
-            firebase.initializeApp(firebaseConfig);
-            database = firebase.database();
-            firebaseReady = true;
-            console.log('✅ Firebase connected!');
-        } catch (error) {
-            console.log('⚠️ Firebase offline, using local storage only');
-            firebaseReady = false;
+                const response = await fetch(
+                    `${FIREBASE_DATABASE_URL}/scores/${scoreId}.json?auth=${FIREBASE_API_KEY}`,
+                    {
+                        method: 'PUT',
+                        body: JSON.stringify(data),
+                        headers: {
+                            'Content-Type': 'application/json'
+                        }
+                    }
+                );
+
+                if (response.ok) {
+                    console.log('✅ Score zu Firebase gespeichert!');
+                    return true;
+                } else {
+                    console.error('Firebase Save Error:', response.status);
+                    return false;
+                }
+            } catch (error) {
+                console.error('Firebase Error:', error);
+                return false;
+            }
+        }
+
+        async function loadScoresFromFirebase() {
+            try {
+                const response = await fetch(
+                    `${FIREBASE_DATABASE_URL}/scores.json?orderBy="score"&limitToLast=10&auth=${FIREBASE_API_KEY}`
+                );
+
+                if (!response.ok) {
+                    throw new Error('Firebase Load Error');
+                }
+
+                const data = await response.json();
+                
+                if (!data) {
+                    return [];
+                }
+
+                const scores = [];
+                Object.values(data).forEach(item => {
+                    if (item && item.score !== undefined) {
+                        scores.push(item);
+                    }
+                });
+
+                scores.sort((a, b) => b.score - a.score);
+                console.log('✅ Scores von Firebase geladen:', scores.length);
+                return scores.slice(0, 10);
+            } catch (error) {
+                console.error('Firebase Load Error:', error);
+                return [];
+            }
         }
 
         // ============================================
@@ -722,49 +767,21 @@
             localStorage.setItem('leaderboard', JSON.stringify(leaderboard));
 
             // Zu Firebase speichern
-            if (firebaseReady) {
-                try {
-                    const timestamp = new Date().getTime();
-                    const scoreId = name + '_' + timestamp;
-                    database.ref('scores/' + scoreId).set({
-                        name: name,
-                        score: score,
-                        date: new Date().toLocaleDateString('de-DE'),
-                        timestamp: timestamp
-                    }).catch(err => console.error('Firebase save error:', err));
-                } catch (error) {
-                    console.error('Error saving to Firebase:', error);
-                }
-            }
+            saveScoreToFirebase(name, score);
         }
 
         function updateLeaderboardDisplay() {
-            // Versuche von Firebase zu laden, sonst lokal
-            if (firebaseReady) {
-                try {
-                    database.ref('scores').orderByChild('score').limitToLast(10).once('value', (snapshot) => {
-                        const data = snapshot.val();
-                        if (data) {
-                            const scores = [];
-                            Object.values(data).forEach(item => {
-                                scores.push(item);
-                            });
-                            scores.sort((a, b) => b.score - a.score);
-                            displayLeaderboard(scores.slice(0, 10));
-                        } else {
-                            loadLocalLeaderboard();
-                        }
-                    }).catch(err => {
-                        console.error('Firebase load error:', err);
-                        loadLocalLeaderboard();
-                    });
-                } catch (error) {
-                    console.error('Error loading from Firebase:', error);
+            // Versuche von Firebase zu laden
+            loadScoresFromFirebase().then(firebaseScores => {
+                if (firebaseScores.length > 0) {
+                    displayLeaderboard(firebaseScores);
+                } else {
                     loadLocalLeaderboard();
                 }
-            } else {
+            }).catch(error => {
+                console.error('Error loading scores:', error);
                 loadLocalLeaderboard();
-            }
+            });
         }
 
         function loadLocalLeaderboard() {
@@ -861,7 +878,7 @@
         updateLeaderboardDisplay();
 
         console.log('🎮 Flappy Bird geladen!');
-        console.log(firebaseReady ? '☁️ Firebase Cloud aktiv!' : '💾 Nur lokale Speicherung');
+        console.log('☁️ Firebase REST API aktiv!');
     </script>
 </body>
 </html>
