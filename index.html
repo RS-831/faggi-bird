@@ -215,6 +215,60 @@
             display: flex;
         }
 
+        .name-dialog-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1001;
+        }
+
+        .name-dialog-content {
+            background: white;
+            padding: 40px;
+            border-radius: 15px;
+            text-align: center;
+            color: #333;
+            min-width: 300px;
+        }
+
+        .name-dialog-content h2 {
+            margin-bottom: 20px;
+            color: #667eea;
+            font-size: 24px;
+        }
+
+        .name-dialog-content input {
+            width: 100%;
+            padding: 12px;
+            font-size: 16px;
+            border: 2px solid #667eea;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-sizing: border-box;
+        }
+
+        .name-dialog-content button {
+            width: 100%;
+            padding: 12px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .name-dialog-content button:hover {
+            transform: scale(1.02);
+        }
+
         .modal-content {
             background: white;
             padding: 40px;
@@ -319,6 +373,15 @@
             <p id="finalScore">Score: 0</p>
             <p id="scoreStatus"></p>
             <button onclick="location.reload()" style="margin-top: 20px;">Nochmal spielen</button>
+        </div>
+    </div>
+
+    <div class="name-dialog-modal" id="nameDialogModal">
+        <div class="name-dialog-content">
+            <h2>🐦 Willkommen!</h2>
+            <p style="margin-bottom: 20px; color: #666;">Wie heißt du?</p>
+            <input type="text" id="nameDialogInput" placeholder="Dein Name" maxlength="20">
+            <button onclick="startGameWithName()">Spielen starten</button>
         </div>
     </div>
 
@@ -574,6 +637,25 @@
         // ============================================
 
         function startGame() {
+            // Namen-Dialog anzeigen
+            const nameInput = document.getElementById('nameDialogInput');
+            nameInput.value = gameState.playerName;
+            document.getElementById('nameDialogModal').style.display = 'flex';
+            nameInput.focus();
+        }
+
+        function startGameWithName() {
+            const nameInput = document.getElementById('nameDialogInput').value.trim();
+            if (!nameInput) {
+                alert('Bitte gib einen Namen ein!');
+                return;
+            }
+
+            gameState.playerName = nameInput;
+            localStorage.setItem('playerName', gameState.playerName);
+            document.getElementById('nameDialogModal').style.display = 'none';
+
+            // Jetzt das Spiel wirklich starten
             gameState.isRunning = true;
             gameState.isGameOver = false;
             gameState.score = 0;
@@ -745,10 +827,23 @@
         document.addEventListener('keydown', (e) => {
             if (e.code === 'Space') {
                 e.preventDefault();
+                
+                // Wenn Namen-Dialog offen ist, ignorieren
+                if (document.getElementById('nameDialogModal').style.display === 'flex') {
+                    return;
+                }
+                
                 if (gameState.isRunning) {
                     bird.jump();
                 } else if (!gameState.isGameOver) {
                     startGame();
+                }
+            }
+
+            // Enter im Namen-Dialog
+            if (e.code === 'Enter') {
+                if (document.getElementById('nameDialogModal').style.display === 'flex') {
+                    startGameWithName();
                 }
             }
         });
@@ -760,6 +855,7 @@
         document.getElementById('highScore').textContent = gameState.highScore;
         document.getElementById('playerName').value = gameState.playerName;
         document.getElementById('themeSelect').value = gameState.currentTheme;
+        document.getElementById('nameDialogModal').style.display = 'none';
 
         draw();
         updateLeaderboardDisplay();
