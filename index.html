@@ -171,30 +171,6 @@
             margin-bottom: 8px;
         }
 
-        .name-input-container {
-            display: flex;
-            gap: 10px;
-            margin-bottom: 15px;
-        }
-
-        .name-input-container input {
-            flex: 1;
-            padding: 8px;
-            border-radius: 5px;
-            border: none;
-            background: rgba(255, 255, 255, 0.2);
-            color: white;
-        }
-
-        .name-input-container input::placeholder {
-            color: rgba(255, 255, 255, 0.6);
-        }
-
-        .name-input-container button {
-            padding: 8px 16px;
-            background: #4CAF50;
-        }
-
         .game-over-modal {
             position: fixed;
             top: 0;
@@ -210,6 +186,25 @@
 
         .game-over-modal.show {
             display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 40px;
+            border-radius: 15px;
+            text-align: center;
+            color: #333;
+        }
+
+        .modal-content h1 {
+            font-size: 32px;
+            margin-bottom: 20px;
+            color: #667eea;
+        }
+
+        .modal-content p {
+            font-size: 20px;
+            margin-bottom: 10px;
         }
 
         .name-dialog-modal {
@@ -264,25 +259,6 @@
 
         .name-dialog-content button:hover {
             transform: scale(1.02);
-        }
-
-        .modal-content {
-            background: white;
-            padding: 40px;
-            border-radius: 15px;
-            text-align: center;
-            color: #333;
-        }
-
-        .modal-content h1 {
-            font-size: 32px;
-            margin-bottom: 20px;
-            color: #667eea;
-        }
-
-        .modal-content p {
-            font-size: 20px;
-            margin-bottom: 10px;
         }
 
         .info-box {
@@ -341,16 +317,10 @@
                 <option value="forest">Forest (Grün/Braun)</option>
             </select>
 
-            <h3>👤 Spielername</h3>
-            <div class="name-input-container">
-                <input type="text" id="playerName" placeholder="Dein Name" maxlength="20">
-                <button onclick="savePlayerName()">Speichern</button>
-            </div>
-
             <h3>🏆 Top Scores (Cloud)</h3>
             <div class="leaderboard" id="leaderboard">
                 <p style="text-align: center; color: #999; font-size: 12px;">
-                    Keine Scores noch
+                    Lädt Scores...
                 </p>
             </div>
 
@@ -384,11 +354,10 @@
 
     <script>
         // ============================================
-        // FIREBASE REST API SETUP
+        // FIREBASE REST API
         // ============================================
 
-        const FIREBASE_DATABASE_URL = "https://flappybird-236b2-default-rtdb.europe-west1.firebasedatabase.app";
-        const FIREBASE_API_KEY = "AIzaSyCUfDBiYbuEbEaLlwKKv3xWkFCU9NwqpQg";
+        const FIREBASE_URL = "https://flappybird-236b2-default-rtdb.europe-west1.firebasedatabase.app";
 
         async function saveScoreToFirebase(name, score) {
             try {
@@ -403,57 +372,39 @@
                 };
 
                 const response = await fetch(
-                    `${FIREBASE_DATABASE_URL}/scores/${scoreId}.json?auth=${FIREBASE_API_KEY}`,
+                    `${FIREBASE_URL}/scores/${scoreId}.json`,
                     {
                         method: 'PUT',
                         body: JSON.stringify(data),
-                        headers: {
-                            'Content-Type': 'application/json'
-                        }
+                        headers: {'Content-Type': 'application/json'}
                     }
                 );
 
                 if (response.ok) {
-                    console.log('✅ Score zu Firebase gespeichert!');
-                    return true;
-                } else {
-                    console.error('Firebase Save Error:', response.status);
-                    return false;
+                    console.log('✅ Score zu Firebase gespeichert');
                 }
             } catch (error) {
-                console.error('Firebase Error:', error);
-                return false;
+                console.error('Firebase save error:', error);
             }
         }
 
         async function loadScoresFromFirebase() {
             try {
-                const response = await fetch(
-                    `${FIREBASE_DATABASE_URL}/scores.json?orderBy="score"&limitToLast=10&auth=${FIREBASE_API_KEY}`
-                );
-
-                if (!response.ok) {
-                    throw new Error('Firebase Load Error');
-                }
+                const response = await fetch(`${FIREBASE_URL}/scores.json`);
+                if (!response.ok) return [];
 
                 const data = await response.json();
-                
-                if (!data) {
-                    return [];
-                }
+                if (!data) return [];
 
-                const scores = [];
-                Object.values(data).forEach(item => {
-                    if (item && item.score !== undefined) {
-                        scores.push(item);
-                    }
-                });
+                const scores = Object.values(data)
+                    .filter(item => item && item.score !== undefined)
+                    .sort((a, b) => b.score - a.score)
+                    .slice(0, 10);
 
-                scores.sort((a, b) => b.score - a.score);
-                console.log('✅ Scores von Firebase geladen:', scores.length);
-                return scores.slice(0, 10);
+                console.log('✅ Firebase Scores geladen:', scores.length);
+                return scores;
             } catch (error) {
-                console.error('Firebase Load Error:', error);
+                console.error('Firebase load error:', error);
                 return [];
             }
         }
@@ -470,7 +421,7 @@
             isGameOver: false,
             score: 0,
             highScore: parseInt(localStorage.getItem('highScore')) || 0,
-            playerName: localStorage.getItem('playerName') || 'Anonymous',
+            playerName: localStorage.getItem('playerName') || 'Player',
             currentTheme: 'classic'
         };
 
@@ -540,10 +491,7 @@
             },
 
             isAlive() {
-                if (this.y < 0 || this.y + this.height > canvas.height - 50) {
-                    return false;
-                }
-                return true;
+                return !(this.y < 0 || this.y + this.height > canvas.height - 50);
             }
         };
 
@@ -563,7 +511,7 @@
             }
 
             update() {
-                this.x -= 3.75;  // Perfektes Tempo
+                this.x -= 3.75;
             }
 
             draw() {
@@ -584,9 +532,9 @@
                 ctx.strokeRect(this.x - 5, bottomY, this.width + 10, 15);
             }
 
-            collidesWith(bird) {
-                if (bird.x + bird.width > this.x && bird.x < this.x + this.width) {
-                    if (bird.y < this.topHeight || bird.y + bird.height > this.topHeight + this.gap) {
+            collidesWith(b) {
+                if (b.x + b.width > this.x && b.x < this.x + this.width) {
+                    if (b.y < this.topHeight || b.y + b.height > this.topHeight + this.gap) {
                         return true;
                     }
                 }
@@ -617,9 +565,9 @@
             if (!gameState.isRunning) return;
 
             bird.update();
-
             frameCount++;
-            if (frameCount % 90 === 0) {  // Noch häufiger Rohre
+
+            if (frameCount % 90 === 0) {
                 pipes.push(new Pipe(canvas.width));
             }
 
@@ -659,11 +607,9 @@
             ctx.lineWidth = 2;
             ctx.strokeRect(0, canvas.height - 50, canvas.width, 50);
 
-            // Rohre und Vogel ZUERST zeichnen
             pipes.forEach(pipe => pipe.draw());
             bird.draw();
 
-            // DANN Score OBEN DRAUF zeichnen (immer sichtbar!)
             ctx.fillStyle = '#000';
             ctx.font = 'bold 30px Arial';
             ctx.fillText(gameState.score, 20, 50);
@@ -682,25 +628,22 @@
         // ============================================
 
         function startGame() {
-            // Namen-Dialog anzeigen
-            const nameInput = document.getElementById('nameDialogInput');
-            nameInput.value = gameState.playerName;
+            document.getElementById('nameDialogInput').value = gameState.playerName;
             document.getElementById('nameDialogModal').style.display = 'flex';
-            nameInput.focus();
+            document.getElementById('nameDialogInput').focus();
         }
 
         function startGameWithName() {
-            const nameInput = document.getElementById('nameDialogInput').value.trim();
-            if (!nameInput) {
+            const name = document.getElementById('nameDialogInput').value.trim();
+            if (!name) {
                 alert('Bitte gib einen Namen ein!');
                 return;
             }
 
-            gameState.playerName = nameInput;
-            localStorage.setItem('playerName', gameState.playerName);
+            gameState.playerName = name;
+            localStorage.setItem('playerName', name);
             document.getElementById('nameDialogModal').style.display = 'none';
 
-            // Jetzt das Spiel wirklich starten
             gameState.isRunning = true;
             gameState.isGameOver = false;
             gameState.score = 0;
@@ -723,20 +666,11 @@
                 document.getElementById('highScore').textContent = gameState.highScore;
             }
 
-            saveScoreToLeaderboard(gameState.playerName, gameState.score);
+            saveScoreToFirebase(gameState.playerName, gameState.score);
             updateLeaderboardDisplay();
 
             document.getElementById('finalScore').textContent = `Score: ${gameState.score}`;
-            
-            let statusText = '';
-            if (gameState.score > gameState.highScore * 0.8) {
-                statusText = '🎉 Großartig!';
-            } else if (gameState.score > 5) {
-                statusText = '👍 Nicht schlecht!';
-            } else {
-                statusText = '💪 Nächstes Mal besser!';
-            }
-            document.getElementById('scoreStatus').textContent = statusText;
+            document.getElementById('scoreStatus').textContent = gameState.score > 5 ? '👍 Nicht schlecht!' : '💪 Nächstes Mal besser!';
             document.getElementById('gameOverModal').classList.add('show');
             document.getElementById('startBtn').textContent = 'Spielen starten';
         }
@@ -754,39 +688,10 @@
             draw();
         }
 
-        // ============================================
-        // LEADERBOARD (LOKAL)
-        // ============================================
-
-        function saveScoreToLeaderboard(name, score) {
-            // Lokal speichern
-            let leaderboard = JSON.parse(localStorage.getItem('leaderboard')) || [];
-            leaderboard.push({ name, score, date: new Date().toLocaleDateString('de-DE') });
-            leaderboard.sort((a, b) => b.score - a.score);
-            leaderboard = leaderboard.slice(0, 10);
-            localStorage.setItem('leaderboard', JSON.stringify(leaderboard));
-
-            // Zu Firebase speichern
-            saveScoreToFirebase(name, score);
-        }
-
         function updateLeaderboardDisplay() {
-            // Versuche von Firebase zu laden
-            loadScoresFromFirebase().then(firebaseScores => {
-                if (firebaseScores.length > 0) {
-                    displayLeaderboard(firebaseScores);
-                } else {
-                    loadLocalLeaderboard();
-                }
-            }).catch(error => {
-                console.error('Error loading scores:', error);
-                loadLocalLeaderboard();
+            loadScoresFromFirebase().then(scores => {
+                displayLeaderboard(scores);
             });
-        }
-
-        function loadLocalLeaderboard() {
-            let leaderboard = JSON.parse(localStorage.getItem('leaderboard')) || [];
-            displayLeaderboard(leaderboard);
         }
 
         function displayLeaderboard(scores) {
@@ -798,7 +703,7 @@
                 return;
             }
 
-            scores.slice(0, 10).forEach((entry, index) => {
+            scores.forEach((entry, index) => {
                 const div = document.createElement('div');
                 div.className = 'leaderboard-entry';
                 if (entry.name === gameState.playerName) {
@@ -809,23 +714,11 @@
             });
         }
 
-        function savePlayerName() {
-            const name = document.getElementById('playerName').value || 'Anonymous';
-            gameState.playerName = name;
-            localStorage.setItem('playerName', name);
-            updateLeaderboardDisplay();
-        }
-
         // ============================================
         // EVENT LISTENER
         // ============================================
 
-        document.getElementById('startBtn').addEventListener('click', () => {
-            if (!gameState.isRunning) {
-                startGame();
-            }
-        });
-
+        document.getElementById('startBtn').addEventListener('click', startGame);
         document.getElementById('resetBtn').addEventListener('click', resetGame);
 
         document.getElementById('themeSelect').addEventListener('change', (e) => {
@@ -844,24 +737,17 @@
         document.addEventListener('keydown', (e) => {
             if (e.code === 'Space') {
                 e.preventDefault();
-                
-                // Wenn Namen-Dialog offen ist, ignorieren
                 if (document.getElementById('nameDialogModal').style.display === 'flex') {
                     return;
                 }
-                
                 if (gameState.isRunning) {
                     bird.jump();
                 } else if (!gameState.isGameOver) {
                     startGame();
                 }
             }
-
-            // Enter im Namen-Dialog
-            if (e.code === 'Enter') {
-                if (document.getElementById('nameDialogModal').style.display === 'flex') {
-                    startGameWithName();
-                }
+            if (e.code === 'Enter' && document.getElementById('nameDialogModal').style.display === 'flex') {
+                startGameWithName();
             }
         });
 
@@ -870,15 +756,13 @@
         // ============================================
 
         document.getElementById('highScore').textContent = gameState.highScore;
-        document.getElementById('playerName').value = gameState.playerName;
         document.getElementById('themeSelect').value = gameState.currentTheme;
         document.getElementById('nameDialogModal').style.display = 'none';
 
         draw();
         updateLeaderboardDisplay();
 
-        console.log('🎮 Flappy Bird geladen!');
-        console.log('☁️ Firebase REST API aktiv!');
+        console.log('🎮 Flappy Bird mit Firebase REST API geladen!');
     </script>
 </body>
 </html>
