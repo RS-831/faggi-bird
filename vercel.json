@@ -1,7 +1,6 @@
 {
-  "buildCommand": "npm install",
   "functions": {
-    "api/*.js": {
+    "api/score.js": {
       "runtime": "nodejs18.x"
     }
   },
