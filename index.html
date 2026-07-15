@@ -302,7 +302,7 @@
             <h2>🎮 Spiel Info</h2>
             
             <div class="info-box">
-                ☁️ Scores werden zu Firebase Cloud hochgeladen
+                🔐 Backend validiert Scores (Cheating Prevention)
             </div>
             
             <div class="score-display">
@@ -354,43 +354,41 @@
 
     <script>
         // ============================================
-        // FIREBASE REST API
+        // BACKEND API (Backend speichert zu Firebase)
         // ============================================
 
-        const FIREBASE_URL = "https://flappybird-236b2-default-rtdb.europe-west1.firebasedatabase.app";
-
-        async function saveScoreToFirebase(name, score) {
+        async function saveScoreToBackend(name, score) {
             try {
-                const timestamp = new Date().getTime();
-                const scoreId = name + '_' + timestamp;
-                
-                const data = {
-                    name: name,
-                    score: score,
-                    date: new Date().toLocaleDateString('de-DE'),
-                    timestamp: timestamp
-                };
-
-                const response = await fetch(
-                    `${FIREBASE_URL}/scores/${scoreId}.json`,
-                    {
-                        method: 'PUT',
-                        body: JSON.stringify(data),
-                        headers: {'Content-Type': 'application/json'}
-                    }
-                );
+                const response = await fetch('/api/score', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        name: name,
+                        score: score,
+                        timestamp: Date.now()
+                    })
+                });
 
                 if (response.ok) {
-                    console.log('✅ Score zu Firebase gespeichert');
+                    console.log('✅ Score zum Backend gesendet');
+                    return true;
+                } else {
+                    console.error('Backend Error:', response.status);
+                    return false;
                 }
             } catch (error) {
-                console.error('Firebase save error:', error);
+                console.error('Network Error:', error);
+                return false;
             }
         }
 
-        async function loadScoresFromFirebase() {
+        async function loadScoresFromBackend() {
             try {
-                const response = await fetch(`${FIREBASE_URL}/scores.json`);
+                const response = await fetch(
+                    `https://flappybird-236b2-default-rtdb.europe-west1.firebasedatabase.app/scores.json`
+                );
                 if (!response.ok) return [];
 
                 const data = await response.json();
@@ -401,10 +399,10 @@
                     .sort((a, b) => b.score - a.score)
                     .slice(0, 10);
 
-                console.log('✅ Firebase Scores geladen:', scores.length);
+                console.log('✅ Scores geladen:', scores.length);
                 return scores;
             } catch (error) {
-                console.error('Firebase load error:', error);
+                console.error('Load Error:', error);
                 return [];
             }
         }
@@ -666,7 +664,8 @@
                 document.getElementById('highScore').textContent = gameState.highScore;
             }
 
-            saveScoreToFirebase(gameState.playerName, gameState.score);
+            // Score zum BACKEND senden (nicht direkt zu Firebase!)
+            saveScoreToBackend(gameState.playerName, gameState.score);
             updateLeaderboardDisplay();
 
             document.getElementById('finalScore').textContent = `Score: ${gameState.score}`;
@@ -689,7 +688,7 @@
         }
 
         function updateLeaderboardDisplay() {
-            loadScoresFromFirebase().then(scores => {
+            loadScoresFromBackend().then(scores => {
                 displayLeaderboard(scores);
             });
         }
@@ -762,7 +761,8 @@
         draw();
         updateLeaderboardDisplay();
 
-        console.log('🎮 Flappy Bird mit Firebase REST API geladen!');
+        console.log('🎮 Flappy Bird geladen!');
+        console.log('🔐 Backend mit Cheating-Prevention aktiv!');
     </script>
 </body>
 </html>
