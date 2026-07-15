@@ -763,7 +763,14 @@
 
         document.getElementById('highScore').textContent = gameState.highScore;
         document.getElementById('themeSelect').value = gameState.currentTheme;
-        document.getElementById('nameDialogModal').style.display = 'none';
+
+        // Wenn noch kein Name gespeichert, gleich Dialog zeigen
+        if (!localStorage.getItem('playerName')) {
+            document.getElementById('nameDialogModal').style.display = 'flex';
+            document.getElementById('nameDialogInput').focus();
+        } else {
+            document.getElementById('nameDialogModal').style.display = 'none';
+        }
 
         draw();
         updateLeaderboardDisplay();
