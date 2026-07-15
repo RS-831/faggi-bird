@@ -354,11 +354,13 @@
 
     <script>
         // ============================================
-        // BACKEND API (Backend speichert zu Firebase)
+        // BACKEND API CALLS
         // ============================================
 
         async function saveScoreToBackend(name, score) {
             try {
+                console.log('Sende Score zum Backend:', {name, score});
+                
                 const response = await fetch('/api/score', {
                     method: 'POST',
                     headers: {
@@ -371,35 +373,40 @@
                     })
                 });
 
+                const data = await response.json();
+                
                 if (response.ok) {
-                    console.log('✅ Score zum Backend gesendet');
+                    console.log('✅ Score zum Backend gesendet:', data);
                     return true;
                 } else {
-                    console.error('Backend Error:', response.status);
+                    console.error('Backend Error:', data);
                     return false;
                 }
             } catch (error) {
-                console.error('Network Error:', error);
+                console.error('Network Error beim Score senden:', error);
                 return false;
             }
         }
 
         async function loadScoresFromBackend() {
             try {
-                const response = await fetch(
-                    `https://flappybird-236b2-default-rtdb.europe-west1.firebasedatabase.app/scores.json`
-                );
-                if (!response.ok) return [];
+                console.log('Lade Leaderboard vom Backend...');
+                
+                const response = await fetch('/api/score');
+                
+                if (!response.ok) {
+                    console.error('Backend Load Error:', response.status);
+                    return [];
+                }
 
-                const data = await response.json();
-                if (!data) return [];
+                const scores = await response.json();
+                
+                if (!scores || scores.length === 0) {
+                    console.log('Keine Scores gefunden');
+                    return [];
+                }
 
-                const scores = Object.values(data)
-                    .filter(item => item && item.score !== undefined)
-                    .sort((a, b) => b.score - a.score)
-                    .slice(0, 10);
-
-                console.log('✅ Scores geladen:', scores.length);
+                console.log('✅ Leaderboard geladen:', scores.length);
                 return scores;
             } catch (error) {
                 console.error('Load Error:', error);
@@ -664,7 +671,7 @@
                 document.getElementById('highScore').textContent = gameState.highScore;
             }
 
-            // Score zum BACKEND senden (nicht direkt zu Firebase!)
+            // Score zum BACKEND senden
             saveScoreToBackend(gameState.playerName, gameState.score);
             updateLeaderboardDisplay();
 
@@ -761,8 +768,8 @@
         draw();
         updateLeaderboardDisplay();
 
-        console.log('🎮 Flappy Bird geladen!');
-        console.log('🔐 Backend mit Cheating-Prevention aktiv!');
+        console.log('🎮 Flappy Bird mit Backend geladen!');
+        console.log('🔐 Jeder Spieler nur mit bestem Score in Leaderboard!');
     </script>
 </body>
 </html>
