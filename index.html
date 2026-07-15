@@ -633,9 +633,29 @@
         // ============================================
 
         function startGame() {
-            document.getElementById('nameDialogInput').value = gameState.playerName;
-            document.getElementById('nameDialogModal').style.display = 'flex';
-            document.getElementById('nameDialogInput').focus();
+            // Wenn schon ein Name existiert, direkt spielen!
+            if (gameState.playerName && gameState.playerName !== 'Player') {
+                startGameDirect();
+            } else {
+                // Nur zeigen wenn noch kein Name
+                document.getElementById('nameDialogInput').value = gameState.playerName;
+                document.getElementById('nameDialogModal').style.display = 'flex';
+                document.getElementById('nameDialogInput').focus();
+            }
+        }
+
+        function startGameDirect() {
+            // Spiel direkt starten ohne Dialog
+            gameState.isRunning = true;
+            gameState.isGameOver = false;
+            gameState.score = 0;
+            bird.y = canvas.height / 2;
+            bird.velocity = -5;
+            pipes = [];
+            frameCount = 0;
+            document.getElementById('currentScore').textContent = '0';
+            document.getElementById('startBtn').textContent = 'Spiel läuft...';
+            gameLoop();
         }
 
         function startGameWithName() {
@@ -649,16 +669,8 @@
             localStorage.setItem('playerName', name);
             document.getElementById('nameDialogModal').style.display = 'none';
 
-            gameState.isRunning = true;
-            gameState.isGameOver = false;
-            gameState.score = 0;
-            bird.y = canvas.height / 2;
-            bird.velocity = -5;
-            pipes = [];
-            frameCount = 0;
-            document.getElementById('currentScore').textContent = '0';
-            document.getElementById('startBtn').textContent = 'Spiel läuft...';
-            gameLoop();
+            // Spiel starten
+            startGameDirect();
         }
 
         function endGame() {
